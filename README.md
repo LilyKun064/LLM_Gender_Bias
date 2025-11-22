@@ -5,7 +5,7 @@ This repository contains the **full experimental pipeline**, **data**, **analysi
 The goal is to evaluate **how LLMs infer a user's gender** and **why** they justify those inferences across controlled stimulus conditions.
 
 This project is my anger product after being mistaken as a man by my ChatGPT simply because I talk about code and science all the time, even though I also asked about my period. 
-Gender bias is everywhere. And we all should be aware of that. 
+Gender bias is everywhere. And we all should be aware of that. I am not an AI researcher nor a computer science major, so please forgive my AI-heavy code. 
 
 ---
 
