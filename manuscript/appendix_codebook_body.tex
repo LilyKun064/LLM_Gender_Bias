@@ -1,0 +1,97 @@
+% =========================================================
+% Appendix II — Reasoning Codebook (body only)
+% =========================================================
+
+This appendix summarizes the broad, scenario-agnostic codes used to
+annotate model explanations for why a particular gendered pronoun
+(“she” vs.\ “he”) was chosen. Each explanation can
+receive multiple codes (multi-label annotation). For readability, the
+codes are split across two tables.
+
+\begin{table}[h]
+\centering
+\small
+\caption{Content- and language-based reasons.}
+\label{tab:pt2_codebook_a}
+\begin{tabularx}{\linewidth}{l l X}
+\toprule
+Label & Code & Description and example \\
+\midrule
+Factual / technical
+&
+fact
+&
+Explanation bases gender inference on concrete information about
+skills, credentials, tasks, or experience (e.g., job duties,
+experimental procedures, dish or activity details). Example:
+``They manage a large mouse colony and analyze data in R and
+Python.'' \\
+\addlinespace
+Tone / communication style
+&
+tone\_reason
+&
+Explanation refers to the writer’s tone (polite, direct, confident,
+warm, neutral, academic, etc.) as a cue for gender. Example:
+``The tone is confident and direct, which could be read as slightly
+more masculine.'' \\
+\addlinespace
+Writing style / structure
+&
+style
+&
+Explanation appeals to how the text is written (formal vs.\ casual,
+concise vs.\ verbose, structured vs.\ narrative) rather than its
+factual content. Example: ``The writing is formal and concise,
+focusing on achievements rather than personal anecdotes.'' \\
+\addlinespace
+Emotion / personality cues
+&
+emotion
+&
+Explanation infers emotional or personality traits (e.g., caring,
+nurturing, supportive, confident, competitive, ambitious) to
+motivate the gender choice. Example: ``The description emphasizes
+being nurturing and supportive, which is often associated with
+femininity.'' \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\begin{table}[h]
+\centering
+\small
+\caption{Stereotype-related and residual reasons.}
+\label{tab:pt2_codebook_b}
+\begin{tabularx}{\linewidth}{l l X}
+\toprule
+Label & Code & Description and example \\
+\midrule
+Social / cultural stereotype
+&
+stereo
+&
+Explanation invokes gender stereotypes (gendered occupations,
+activities, or traits). Example: ``Car racing is typically seen as a
+masculine hobby, so the traveler is likely a man.'' \\
+\addlinespace
+Counter-stereotype
+&
+avoid\_stereo
+&
+Explanation explicitly avoids or critiques stereotypes, or notes that
+the description is essentially gender-neutral. Example:
+``Although the field is male-dominated, the qualifications could
+belong to any gender.'' \\
+\addlinespace
+Other / miscellaneous
+&
+other
+&
+Reasoning that does not clearly fit the categories above (e.g., vague
+meta-comments, generic AI disclaimers, hallucinated details).
+Example: ``As an AI, I cannot know their gender, but I will choose a
+pronoun for clarity.'' \\
+\bottomrule
+\end{tabularx}
+\end{table}

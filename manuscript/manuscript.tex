@@ -1,0 +1,567 @@
+\documentclass[11pt]{article}
+
+% --------------------------------------------------
+% Basic packages
+% --------------------------------------------------
+\usepackage{times}
+\usepackage{latexsym}
+\usepackage{microtype}
+\usepackage{graphicx}
+\usepackage{amsmath, amssymb}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{url}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{float}
+\usepackage{multirow}
+\usepackage{caption}
+\usepackage{subcaption}
+
+% --------------------------------------------------
+% Page setup (Workshop-friendly)
+% --------------------------------------------------
+\usepackage[margin=1in]{geometry}
+\setlength{\parskip}{0.6em}
+\setlength{\parindent}{0pt}
+
+% --------------------------------------------------
+% Title
+% --------------------------------------------------
+\title{%
+\textbf{Gendered Pronoun Inference by Large Language Models\\
+       Occupation, Tone, and Interaction Effects} \\
+\large Workshop Submission Draft
+}
+
+\author{
+    Chenkun Jiang \\
+    Affiliation \\
+\texttt{[jckun06@gmail.com]}
+}
+
+\date{\today}
+
+% ==================================================
+% DOCUMENT START
+% ==================================================
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+% --------------------------------------------------
+% Abstract goes here
+% --------------------------------------------------
+\end{abstract}
+
+\section{Introduction}
+% --------------------------------------------------
+% Intro content
+% --------------------------------------------------
+
+\section{Related Work}
+% --------------------------------------------------
+
+\section{Methods}
+\label{sec:methods}
+
+\subsection{Overview}
+The study consisted of four sequential components:
+(1) a full three-stage prompt generation experiment,
+(2) Bayesian analysis of pronoun choice,
+(3) LLM-assisted coding of explanation reasons,
+and (4) Bayesian analysis of the coded reasons.
+All prompt templates are provided in Appendix~I,
+and the coding scheme is presented in Appendix~II.
+All code used to run the analyses is available in a public GitHub repository
+(link to be inserted).
+
+\subsection{Three-Stage Prompt Experiment}
+We evaluated four large language models—
+GPT-4.1-mini, GPT-4o-mini, Gemini-2.0-Flash, and DeepSeek-Chat—
+across three scenarios (cover letter, potluck, and travel).
+Each scenario followed a factorial design:
+
+\begin{itemize}
+    \item \textbf{Cover Letter:}
+    occupation $\in$ \{\textit{research scientist, teacher, software engineer}\}
+    $\times$ tone $\in$ \{\textit{direct, polite}\}.
+    \item \textbf{Potluck:}
+    food $\in$ \{\textit{steak, tiramisu}\}
+    $\times$ tone.
+    \item \textbf{Travel:}
+    hobby profile $\in$ \{\textit{hobby1, hobby2}\}
+    $\times$ tone.
+\end{itemize}
+
+Each cell was repeated 30 times per model.
+The script \texttt{full\_experiment.py} produced three outputs for each trial:
+
+\begin{enumerate}
+    \item \textbf{Stage 1:} Generation of the primary text.
+    \item \textbf{Stage 2:} The model selected \textit{he/him} or \textit{she/her}
+    and produced a 2--3~sentence third-person description.
+    \item \textbf{Stage 3:} The model explained its pronoun choice using only cues
+    contained in the Stage~1 text.
+\end{enumerate}
+
+All requests were executed at:
+temperature~$=0.7$, top-$p=1.0$, and a 512-token limit
+(ensuring comparable randomness across systems).
+To maintain API stability, Gemini-2.0-Flash calls
+were serialized with a lock, while the other models used a maximum of two workers.
+A global random seed was fixed at 108 for all sampling operations and ordering routines.
+No post-filtering of outputs was performed; all responses were retained regardless of
+quality, refusals, or style.  
+The decision to \textit{force a binary pronoun choice} (he or she) is intentional
+and discussed later in the Discussion section.
+All output texts and metadata were compiled into a single long-format CSV.
+
+\subsection{Bayesian Analysis of Pronoun Choice}
+For each trial, we extracted the binary outcome
+\[
+y_i =
+\begin{cases}
+1, & \text{if the dominant pronoun was \textit{she}}, \\
+0, & \text{if \textit{he}}.
+\end{cases}
+\]
+
+We fit a hierarchical logistic regression using PyMC,
+following the grouping structure used in the experiment:
+model, scenario, tone, the scenario-specific semantic factor
+(occupation, food, or hobby), and the model~$\times$~scenario interaction.
+
+\begin{align}
+y_i &\sim \mathrm{Bernoulli}(p_i), \\
+\mathrm{logit}(p_i) &= \alpha
++ a_{\text{model}[i]}
++ a_{\text{scenario}[i]}
++ a_{\text{tone}[i]}
++ a_{\text{factor}[i]}
++ a_{\text{model}\times\text{scen}[\text{model}[i], \text{scenario}[i]]}.
+\end{align}
+
+Random effects followed
+\begin{align}
+a_\cdot &\sim \mathcal{N}(0, \sigma_\cdot), \\
+\alpha &\sim \mathcal{N}(0, 2), \\
+\sigma_\cdot &\sim \mathrm{Exponential}(1).
+\end{align}
+
+We ran four chains (2000 warmup, 2000 draws).
+Group-level summaries (model-, scenario-, tone-level)
+reflect posterior expectations obtained via inverse-logit transformation
+of the corresponding random-effect combinations.
+
+\subsection{LLM-Assisted Explanation Coding}
+Each Stage~3 explanation was scored using the hybrid procedure
+implemented in \texttt{score\_human\_code\_with\_LLLM.py}.
+The scoring produced two groups of variables:
+
+\paragraph{(1) Content-related fractional reasons.}
+The LLM assigned fractional weights to four categories:
+\textit{fact}, \textit{tone reason}, \textit{style}, and \textit{emotion},
+subject to the simplex constraint:
+\[
+\text{fact} + \text{tone reason} + \text{style} + \text{emotion} = 1.
+\]
+
+\paragraph{(2) Stereotype-related indicators.}
+The LLM additionally produced:
+\[
+\textit{mentions\_stereotype} \in \{0,1\},
+\qquad
+\textit{stereotype\_gender} \in \{\text{masc}, \text{fem}, \text{both}, \text{none}, \text{unclear}\}.
+\]
+
+We then applied a deterministic mapping to categorize each explanation into:
+\begin{itemize}
+    \item \textbf{stereo:} the model explicitly invoked a gender stereotype
+    (occupation-, hobby-, or trait-based),
+    \item \textbf{avoid stereo:} the model explicitly rejected or critiqued a stereotype
+    or described the text as broadly gender-neutral,
+    \item \textbf{other:} the model refused to infer gender,
+    gave meta-statements (e.g.\ AI disclaimers), or produced reasoning outside the scheme.
+\end{itemize}
+Importantly, an explanation could only be assigned to these classes if
+\textit{mentions\_stereotype = 1}.
+Thus, the hierarchy is:
+\[
+\textit{mentions stereotype} \rightarrow
+\{\textit{stereo},\ \textit{avoid stereo},\ \textit{other}\}.
+\]
+
+\subsection{Bayesian Analysis of Coded Reasons}
+The coded explanation data generated two analysis streams:
+(1) a logistic-normal compositional model for the four content reasons,
+and (2) hierarchical logistic regressions for each stereotype-related binary variable.
+
+\paragraph{Content-reason composition (logistic-normal model).}
+Let
+\[
+\mathbf{r}_i = 
+(r_{i,\text{fact}},\ r_{i,\text{tone}},\ r_{i,\text{style}},\ r_{i,\text{emotion}})
+\]
+denote the fractional weights, with $\sum_k r_{i,k}=1$.
+We applied an additive log-ratio (ALR) transform using
+\textit{emotion} as the reference category:
+\[
+\mathbf{z}_i =
+\bigg(
+\log \frac{r_{i,\text{fact}}}{r_{i,\text{emotion}}},
+\log \frac{r_{i,\text{tone}}}{r_{i,\text{emotion}}},
+\log \frac{r_{i,\text{style}}}{r_{i,\text{emotion}}}
+\bigg).
+\]
+
+We modeled $\mathbf{z}_i$ with a hierarchical Gaussian regression,
+mirroring the structure of the pronoun model.
+
+\begin{align}
+\boldsymbol{\eta}_i &= \boldsymbol{\alpha}
++ \mathbf{a}_{\text{model}[i]}
++ \mathbf{a}_{\text{scen}[i]}
++ \mathbf{a}_{\text{tone}[i]}
++ \mathbf{a}_{\text{factor}[i]}
++ \mathbf{a}_{\text{m}\times\text{s}[\text{model}[i], \text{scen}[i]]}, \\
+\boldsymbol{\alpha} &\sim \mathcal{N}(\mathbf{0}, 1.5^2 I_3), \\
+\mathbf{a}_\cdot &\sim \mathcal{N}(\mathbf{0}, \sigma_\cdot^2 I_3), \\
+\sigma_\cdot &\sim \mathrm{HalfNormal}(0.5), \\
+z_{i,d} &\sim \mathcal{N}(\eta_{i,d}, \sigma_{\text{resid},d}^2),
+\quad
+\sigma_{\text{resid},d} \sim \mathrm{HalfNormal}(1.0).
+\end{align}
+
+Posterior draws were mapped back to the simplex using the inverse ALR transform
+(softmax over ALR coordinates plus the implicit reference component).
+
+\paragraph{Binary stereotype indicators.}
+Each variable
+$y^{(c)}_i \in \{0,1\}$ (e.g.\ \textit{stereo}, \textit{avoid stereo}, \textit{mentions stereotype})
+was modeled with hierarchical logistic regression:
+
+\begin{align}
+y^{(c)}_i &\sim \mathrm{Bernoulli}(p^{(c)}_i), \\[6pt]
+\mathrm{logit}(p^{(c)}_i) 
+&=
+\begin{aligned}[t]
+&\alpha^{(c)} + a_{\text{model}[i]}^{(c)} + a_{\text{scen}[i]}^{(c)} \\
+&\quad + a_{\text{tone}[i]}^{(c)} + a_{\text{factor}[i]}^{(c)} + a_{\text{m}\times\text{s}[\text{model}[i],\,\text{scen}[i]]}^{(c)}
+\end{aligned}
+, \\[10pt]
+\alpha^{(c)} &\sim \mathcal{N}(0,1.5^2), \\
+a_\cdot^{(c)} &\sim \mathcal{N}(0,\sigma_\cdot^{(c)2}), \\
+\sigma_\cdot^{(c)} &\sim \mathrm{HalfNormal}(0.5).
+\end{align}
+
+
+All models were fit using PyMC with NUTS,
+four chains, 2000 warmup iterations, and 2000 posterior draws per chain.
+Outputs include global baselines, model/scenario/tone-level baselines,
+pairwise contrasts, and variance components.
+
+\section{Results}
+\label{sec:results}
+
+We report posterior means, standard deviations, and 95\% highest-density
+intervals (HDIs) for (i) the probability of producing \emph{she} (Stage~1)
+and (ii) the modeled probabilities for explanation reasons (Stage~2).
+We keep interpretation minimal and focus on simple descriptive trends.
+
+\subsection{Pronoun Assignment}
+
+Across all models, scenarios, tones, and factors, the global posterior mean
+probability of selecting \emph{she} was
+\[
+    p(\text{she})_{\text{global}} = 0.673
+\quad
+    (\text{SD}=0.262,\;
+    \text{HDI}_{95}=[0.089,\;0.994]).
+\]
+Thus, across the entire experiment, \emph{she} was more common than \emph{he}
+on average, although the HDI indicates substantial uncertainty and
+heterogeneity across conditions.
+
+% -------------------------
+% Stage 1 tables
+% -------------------------
+
+\begin{table}[ht]
+\centering
+\small
+\caption{Model-level baseline posterior estimates of $p(\text{she})$.}
+\label{tab:model}
+\begin{tabular}{lcccc}
+\toprule
+Model & Mean & SD & 2.5\% & 97.5\% \\
+\midrule
+DeepSeek-Chat & 0.289 & 0.229 & 0.007 & 0.807 \\
+Gemini-Flash  & 0.484 & 0.267 & 0.032 & 0.944 \\
+gpt-4.1-mini  & 0.740 & 0.217 & 0.214 & 0.990 \\
+gpt-4o-mini   & 0.808 & 0.183 & 0.330 & 0.994 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[ht]
+\centering
+\small
+\caption{Scenario-level baseline posterior estimates of $p(\text{she})$.}
+\label{tab:scenario}
+\begin{tabular}{lcccc}
+\toprule
+Scenario & Mean & SD & 2.5\% & 97.5\% \\
+\midrule
+Cover letter & 0.668 & 0.272 & 0.076 & 0.991 \\
+Potluck      & 0.717 & 0.264 & 0.099 & 0.996 \\
+Travel       & 0.568 & 0.299 & 0.023 & 0.979 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[ht]
+\centering
+\small
+\caption{Tone-level baseline posterior estimates of $p(\text{she})$.}
+\label{tab:tone}
+\begin{tabular}{lcccc}
+\toprule
+Tone & Mean & SD & 2.5\% & 97.5\%\\
+\midrule
+Direct & 0.514 & 0.277 & 0.042 & 0.958 \\
+Polite & 0.831 & 0.191 & 0.282 & 0.995 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[ht]
+\centering
+\small
+\caption{Pairwise differences in baseline $p(\text{she})$.  
+Values represent $p(\text{she})_{\text{model2}} -
+p(\text{she})_{\text{model1}}$.}
+\label{tab:pairwise}
+\begin{tabular}{l l c c c c c}
+\toprule
+Model1 & Model2 & Mean & SD & 2.5\% & 97.5\% & Prob$>$0 \\
+\midrule
+DeepSeek & Gemini & 0.221 & 0.166 & -0.010 & 0.530 & 0.778 \\
+DeepSeek & 4.1    & 0.451 & 0.315 & -0.073 & 0.851 & 0.867 \\
+DeepSeek & 4o     & 0.492 & 0.277 & -0.003 & 0.900 & 0.972 \\
+Gemini   & 4.1    & 0.229 & 0.196 & -0.112 & 0.633 & 0.596 \\
+Gemini   & 4o     & 0.270 & 0.197 & -0.060 & 0.664 & 0.641 \\
+4.1      & 4o     & 0.050 & 0.161 & -0.255 & 0.320 & 0.408 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[ht]
+\centering
+\small
+\caption{Selected cell-level differences in $p(\text{she})$.  
+Full table in Appendix.}
+\label{tab:cell}
+\begin{tabular}{l l l l l c c c}
+\toprule
+Scenario & Factor & Tone & M1 & M2 & Mean & 2.5\% & 97.5\% \\
+\midrule
+Cover letter & Middle school teacher & Direct & DeepSeek & 4.1 & -0.525 & -0.659 & -0.381 \\
+Cover letter & Research scientist    & Polite & 4.1      & 4o  &  0.187 &  0.010 &  0.358 \\
+Potluck      & Role 3                & Polite & Gemini   & 4o  &  0.302 &  0.011 &  0.636 \\
+Travel       & Hobby 2               & Direct & DeepSeek & 4.1 & -0.337 & -0.501 & -0.141 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsubsection{Model-, Scenario-, and Tone-Level Trends}
+
+Model-level baselines (Table~\ref{tab:model}) differ in magnitude.
+DeepSeek-Chat has the lowest mean probability of \emph{she}, Gemini-Flash
+is intermediate, and both GPT models have higher means. Scenario-level
+baselines (Table~\ref{tab:scenario}) show that the potluck prompts have
+the highest average $p(\text{she})$, followed by cover letters, with
+travel scenarios lower on average. Tone-level estimates
+(Table~\ref{tab:tone}) suggest that polite prompts are associated with a
+higher mean $p(\text{she})$ than direct prompts.
+
+Pairwise model comparisons (Table~\ref{tab:pairwise}) indicate that, on
+average across conditions, the GPT models tend to assign higher
+probabilities to \emph{she} than DeepSeek-Chat, with Gemini-Flash
+typically in between. Selected cell-level contrasts
+(Table~\ref{tab:cell}) illustrate that differences can be large in
+specific scenario–factor–tone combinations, with both strongly
+\emph{she}-leaning and strongly \emph{he}-leaning cells.
+
+\subsection{Explanation Reasons}
+
+Stage~2 models ask how and when different explanation reasons are used.
+We report posterior means from the hierarchical models for (i) global
+use of each reason category, (ii) model-level probabilities, and
+(iii) scenario- and tone-level patterns.
+
+% -------------------------
+% Stage 2 tables
+% -------------------------
+
+\begin{table}[!t]
+\centering
+\caption{Posterior means for global probability ($p_{\text{global}}$) 
+across all reason categories. Values reflect the estimated probability 
+that a given reason was used in the pronoun explanation.}
+\label{tab:pt2_global}
+\begin{tabular}{l c}
+\hline
+\textbf{Reason Category} & $p_{\text{global}}$ \\
+\hline
+Fact               & 0.462 \\
+Tone Reason        & 0.286 \\
+Style              & 0.092 \\
+Emotion            & 0.123 \\
+Stereotype         & 0.605 \\
+Avoid Stereotype   & 0.255 \\
+Mentions Stereotype & 0.935 \\
+Other              & 0.062 \\
+\hline
+\end{tabular}
+\end{table}
+
+\begin{table*}[!t]
+\centering
+\caption{Posterior means for model-level probabilities across 
+all reason categories.}
+\label{tab:pt2_model}
+\begin{tabular}{lcccc}
+\hline
+\textbf{Reason Category} & \textbf{DeepSeek} & \textbf{Gemini} & 
+\textbf{GPT-4.1-mini} & \textbf{GPT-4o-mini} \\
+\hline
+Fact               & 0.445 & 0.524 & 0.425 & 0.453 \\
+Tone Reason        & 0.332 & 0.207 & 0.317 & 0.277 \\
+Style              & 0.080 & 0.074 & 0.125 & 0.076 \\
+Emotion            & 0.091 & 0.085 & 0.115 & 0.190 \\
+Stereotype         & 0.572 & 0.532 & 0.694 & 0.626 \\
+Avoid Stereotype   & 0.393 & 0.103 & 0.228 & 0.325 \\
+\hline
+\end{tabular}
+\end{table*}
+
+\begin{table}[!t]
+\centering
+\caption{Posterior means for scenario-level probabilities.}
+\label{tab:pt2_scenario}
+\begin{tabular}{lccc}
+\hline
+\textbf{Reason} & \textbf{Cover} & \textbf{Potluck} & \textbf{Travel} \\
+\hline
+Fact               & 0.456 & 0.374 & 0.553 \\
+Tone Reason        & 0.289 & 0.325 & 0.228 \\
+Style              & 0.089 & 0.102 & 0.073 \\
+Emotion            & 0.117 & 0.127 & 0.110 \\
+Stereotype         & 0.586 & 0.603 & 0.629 \\
+Avoid Stereotype   & 0.256 & 0.269 & 0.229 \\
+Mentions Stereotype & 0.913 & 0.954 & 0.950 \\
+Other              & 0.083 & 0.043 & 0.047 \\
+\hline
+\end{tabular}
+\end{table}
+
+\begin{table}[!t]
+\centering
+\caption{Posterior means for tone-level probabilities.}
+\label{tab:pt2_tone}
+\begin{tabular}{lcc}
+\hline
+\textbf{Reason Category} & \textbf{Direct} & \textbf{Polite} \\
+\hline
+Fact               & 0.542 & 0.380 \\
+Tone Reason        & 0.258 & 0.299 \\
+Style              & 0.089 & 0.082 \\
+Emotion            & 0.085 & 0.131 \\
+Stereotype         & 0.595 & 0.620 \\
+Avoid Stereotype   & 0.253 & 0.246 \\
+Mentions Stereotype & 0.937 & 0.948 \\
+Other              & 0.061 & 0.050 \\
+\hline
+\end{tabular}
+\end{table}
+
+\subsubsection{Global and Model-Level Reason Patterns}
+
+Global probabilities (Table~\ref{tab:pt2_global}) show that fact-based
+reasons are used most often, followed by tone-related reasons. Style and
+emotion reasons are used less frequently but appear regularly. Among the
+stereotype-related codes, \texttt{Stereotype} itself has a moderate global
+probability, \texttt{Avoid Stereotype} is lower, and
+\texttt{Mentions Stereotype} is high, indicating that explicit reference
+to stereotypes in explanations is common.
+
+Model-level estimates (Table~\ref{tab:pt2_model}) indicate broadly
+similar profiles across systems. All four models allocate a substantial
+portion of their explanation probability mass to fact-based reasons and a
+smaller portion to tone, style, and emotion. Differences across models
+are visible but moderate in magnitude.
+
+\subsubsection{Scenario- and Tone-Level Reason Patterns}
+
+Scenario-level summaries (Table~\ref{tab:pt2_scenario}) show that travel
+prompts have the highest fact probability, potluck prompts give somewhat
+more weight to tone, and cover letters lie in between for most content
+reasons. Stereotype-related codes are present in all three scenarios with
+similar magnitudes.
+
+Tone-level results (Table~\ref{tab:pt2_tone}) show that direct prompts
+have higher fact probability than polite prompts, whereas polite prompts
+have somewhat higher emotion probability. The probabilities for style and
+tone reasons are broadly similar across tones, with only small shifts.
+
+\subsection{Summary of Observed Patterns}
+
+Across both stages, several descriptive patterns emerge:
+
+\begin{itemize}
+    \item All models produce a mix of \emph{she} and \emph{he}, with
+          moderate variation across models, scenarios, tones, and factors.
+    \item GPT-4.1-mini and GPT-4o-mini have higher baseline probabilities
+          of \emph{she} than Gemini-Flash and DeepSeek-Chat, on average.
+    \item Scenario- and tone-level baselines differ in magnitude but none
+          of the conditions is close to deterministic.
+    \item Explanations are dominated by fact-based reasons, with tone,
+          style, and emotion contributing smaller but systematic amounts.
+    \item Stereotype-related codes appear in all scenarios and tones, with
+          moderate probabilities for \texttt{Stereotype} and
+          \texttt{Avoid Stereotype}, and high probability that
+          explanations explicitly mention stereotypes.
+\end{itemize}
+
+Interpretation of these results, including their implications for gender
+bias and system behavior, is deferred to the Discussion.
+
+\section{Discussion}
+% --------------------------------------------------
+
+\section{Conclusion}
+% --------------------------------------------------
+
+\clearpage
+\appendix
+
+% ---------------------------------------
+% Appendix I — Prompt Templates
+% ---------------------------------------
+\section*{Appendix I. Full Prompt Templates}
+\addcontentsline{toc}{section}{Appendix I. Full Prompt Templates}
+\input{appendix_I_Body.tex}
+
+% ---------------------------------------
+% Appendix II — Reasoning Codebook
+% ---------------------------------------
+\clearpage
+\section*{Appendix II. Reasoning Codebook}
+\addcontentsline{toc}{section}{Appendix II. Reasoning Codebook}
+\input{appendix_codebook_body.tex}
+
+
+\end{document}

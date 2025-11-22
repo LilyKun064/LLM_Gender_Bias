@@ -1,0 +1,23 @@
+# Python virtual environment
+.venv/
+venv/
+
+# VS Code
+.vscode/
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Results (optional)
+results/
+
+# OS trash
+.DS_Store
+Thumbs.db
+
+config/.env
+
