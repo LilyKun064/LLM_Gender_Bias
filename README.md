@@ -4,6 +4,9 @@ Pronoun Assignment Bias & Reasoning Across Scenarios, Tones, and Model Families
 This repository contains the **full experimental pipeline**, **data**, **analysis code**, and **manuscript** for a multi-stage study examining gender bias in large language models.  
 The goal is to evaluate **how LLMs infer a user's gender** and **why** they justify those inferences across controlled stimulus conditions.
 
+This project is my anger product after being mistaken as a man by my ChatGPT simply because I talk about code and science all the time, even though I also asked about my period. 
+Gender bias is everywhere. And we all should be aware of that. 
+
 ---
 
 # 📁 Directory Structure
